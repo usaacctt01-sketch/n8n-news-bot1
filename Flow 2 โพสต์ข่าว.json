@@ -1,0 +1,722 @@
+{
+  "name": "Flow 2 โพสต์ข่าว",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 2
+            }
+          ]
+        }
+      },
+      "id": "c9c60042-5249-4a9d-83db-2dadd6cf6eef",
+      "name": "Every 2 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1248,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "10V9Vb_tugGr10OjxtkGXQXpc8juZdDj4kVYnc4uFwD4",
+          "mode": "list",
+          "cachedResultName": "Test Flow YT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10V9Vb_tugGr10OjxtkGXQXpc8juZdDj4kVYnc4uFwD4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10V9Vb_tugGr10OjxtkGXQXpc8juZdDj4kVYnc4uFwD4/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "status",
+              "lookupValue": "pending"
+            }
+          ]
+        },
+        "options": {
+          "returnAllMatches": "returnFirstMatch"
+        }
+      },
+      "id": "5528ad9e-1b15-4188-bcfc-c1bae16bf803",
+      "name": "Get Pending Job",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        -1024,
+        -176
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "PnMu7LehZVBsep0A",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "has-job",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "eb9beec2-e86e-4740-8581-c3deaa5834a9",
+      "name": "IF Job Found",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://youtube-downloader-api:8000/download",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "video_url",
+              "value": "={{ $json.video_url }}"
+            },
+            {
+              "name": "video_id",
+              "value": "={{ $json.video_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "aff41c81-6461-4109-9f20-5b74d1e249aa",
+      "name": "Download Video (FastAPI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -544,
+        -368
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// รับข้อมูลจาก Get Pending Job (เก็บ video_id ต้นทาง)\nconst pendingJob = $('Get Pending Job').first().json;\n\n// รับข้อมูลจาก Merge node\nconst mergedData = $input.all();\n\n// หา video info และ AI response\nlet video = null;\nlet ai = null;\n\nmergedData.forEach(item => {\n  if (item.json.file_path) {\n    video = item.json;  // จาก Download Video\n  }\n  if (item.json.output || item.json.caption) {\n    ai = item.json;  // จาก Quote Creator\n  }\n});\n\n// สร้าง caption\nconst caption = ai?.output?.caption || ai?.caption || video?.title || 'ดูวิดีโอนี้!';\nconst hashtags = ai?.output?.hashtags || ai?.hashtags || '';\nconst fullCaption = hashtags ? `${caption}\\n\\n${hashtags}` : caption;\n\n// Extract filename\nconst filename = video.file_path.split('/').pop();\n\n// Return พร้อม video_id จาก Get Pending Job\nreturn {\n  json: {\n    // ✅ เพิ่ม: video_id จาก Get Pending Job สำหรับ Mark as Done\n    pending_video_id: pendingJob.video_id,\n    pending_video_url: pendingJob.video_url,\n    \n    // ข้อมูลเดิม\n    video_id: video.video_id,\n    filename: filename,\n    file_path: video.file_path,\n    caption: fullCaption,\n    video_file_path: video.file_path\n  }\n};"
+      },
+      "id": "4bd12c84-8f6d-450a-bc1d-08236419042a",
+      "name": "Prepare FB Post Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        96,
+        -352
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "10V9Vb_tugGr10OjxtkGXQXpc8juZdDj4kVYnc4uFwD4",
+          "mode": "list",
+          "cachedResultName": "Test Flow YT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10V9Vb_tugGr10OjxtkGXQXpc8juZdDj4kVYnc4uFwD4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/10V9Vb_tugGr10OjxtkGXQXpc8juZdDj4kVYnc4uFwD4/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "video_url": "={{ $('Prepare FB Post Data').item.json.pending_video_url }}",
+            "status": "done",
+            "video_id": "={{ $('Prepare FB Post Data').item.json.pending_video_id }}"
+          },
+          "matchingColumns": [
+            "video_url"
+          ],
+          "schema": [
+            {
+              "id": "video_id",
+              "displayName": "video_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "video_url",
+              "displayName": "video_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "channel_name",
+              "displayName": "channel_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "6e5d3c13-ae4f-4b6e-976e-2e7270c83b68",
+      "name": "Mark as Done",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        736,
+        -352
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "PnMu7LehZVBsep0A",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://fastapi:8000/cleanup",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "file_path",
+              "value": "={{ $('Download Video (FastAPI)').first().json.file_path }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e6f8b4e7-7dac-4b24-b386-fdffd114af7b",
+      "name": "Cleanup Video File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        912,
+        -352
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "f91cd95f-19f7-422d-8fa0-03bd40b2634a",
+      "name": "No Job (Wait)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -544,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "command": "=python3 /scripts/fetch_youtube_shorts.py --channel-url \"{{ $json.video_url }}\" --max-videos 1"
+      },
+      "name": "Fetch 5 Latest Shorts1",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -544,
+        -160
+      ],
+      "id": "21fdcf83-1bb0-4273-aa95-39b5c5ec0958"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = JSON.parse($input.item.json.stdout);\nif (data.status === 'error' || !data.videos) return [];\n\nconst postedIds = $input.item.json.postedVideoIds || [];\nconst newVideos = [];\n\nfor (const video of data.videos) {\n  if (!postedIds.includes(video.video_id)) {\n    newVideos.push({\n      json: {\n        video_id: video.video_id,\n        video_url: video.video_url,\n        title: video.title,\n        platform: 'youtube_shorts',\n        channel_url: $input.item.json.url\n      }\n    });\n  }\n}\n\nreturn newVideos;"
+      },
+      "name": "Filter New Videos1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        -160
+      ],
+      "id": "9ff16dee-2fff-45be-98f8-20613c1d6e47"
+    },
+    {
+      "parameters": {
+        "command": "=python3 /scripts/process_video.py --url \"{{ $json.video_url }}\" --output-dir /tmp/n8n --cleanup"
+      },
+      "name": "Download & Capture1",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -256,
+        -160
+      ],
+      "id": "fec29f03-6f46-4eac-a265-4c12f6e48d8c"
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = JSON.parse($input.item.json.stdout);\nif (result.status === 'error') throw new Error(result.error);\nreturn [{ json: { ...$input.item.json, screenshot: result.screenshot_paths[0] } }];"
+      },
+      "name": "Parse Result1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -112,
+        -160
+      ],
+      "id": "a424ce54-9623-4070-bb14-2387f2907780"
+    },
+    {
+      "parameters": {
+        "filePath": "={{ $json.screenshot }}"
+      },
+      "name": "Read Screenshot1",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1,
+      "position": [
+        16,
+        -160
+      ],
+      "id": "81507ae4-79db-4918-9b76-28d50d773fdf"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "You are a Thai social media expert specializing in news and social content.\n\nTASK:\nAnalyze this image carefully. This is likely a news video or social commentary with Thai text overlay.\n\n1. READ the Thai text in the image (if any)\n2. UNDERSTAND the context and mood\n3. CREATE engaging Facebook content\n\nRESPONSE FORMAT (CRITICAL - MUST FOLLOW EXACTLY):\n{\n  \"caption\": \"แคปชั่นภาษาไทย 20-40 คำ ที่สรุปใจความสำคัญและดึงดูดความสนใจ\",\n  \"hashtags\": \"#แท็ก1 #แท็ก2 #แท็ก3 #แท็ก4 #แท็ก5 #แท็ก6 #แท็ก7\"\n}\n\nCAPTION GUIDELINES:\n✅ สรุปประเด็นหลักจากข้อความในภาพ\n✅ ใช้ภาษาที่เข้าใจง่าย น่าสนใจ\n✅ เน้นประเด็นที่น่าติดตาม\n✅ 20-40 คำ (ไม่ยาวเกินไป)\n✅ เหมาะกับโพสต์ข่าว/สังคม\n\nHASHTAG GUIDELINES:\n✅ 5-10 hashtags ที่เกี่ยวข้อง\n✅ ใช้ทั้งแฮชแท็กทั่วไปและเฉพาะเจาะจง\n✅ รวม: ข่าว, สังคม, ประเด็น, คำค้นยอดนิยม\n\nEXAMPLES:\n\nExample 1 (News):\n{\n  \"caption\": \"จับตาประเด็นร้อน! สถานการณ์ล่าสุดที่ทุกคนต้องรู้ ติดตามความเคลื่อนไหวได้ที่นี่\",\n  \"hashtags\": \"#ข่าวด่วน #ข่าววันนี้ #ประเด็นร้อน #สังคมไทย #ติดตามสถานการณ์ #ข่าวสด #อัพเดทล่าสุด\"\n}\n\nExample 2 (Social Issue):\n{\n  \"caption\": \"เรื่องที่ควรรู้! ผลกระทบที่มีต่อสังคมไทย ร่วมแสดงความคิดเห็นและติดตามเพิ่มเติม\",\n  \"hashtags\": \"#สังคมไทย #ประเด็นสังคม #คนไทยต้องรู้ #ข่าวสังคม #ติดตาม #เรื่องเล่าสังคม #ไวรัล\"\n}\n\nExample 3 (Commentary):\n{\n  \"caption\": \"มุมมองที่น่าสนใจ! วิเคราะห์สถานการณ์แบบเจาะลึก พร้อมข้อมูลที่ครบถ้วน\",\n  \"hashtags\": \"#วิเคราะห์ข่าว #ความคิดเห็น #มุมมอง #สถานการณ์ไทย #ข่าวเจาะลึก #รายงานพิเศษ #ติดตามข่าว\"\n}\n\nSTRICT RULES:\n✅ Return ONLY valid JSON (no markdown, no code blocks)\n✅ Use Thai language only\n✅ Based on the text/context in the image\n✅ Professional tone for news content\n❌ NO explanations outside JSON\n❌ NO nested \"output\" object\n❌ NO backticks or markdown\n❌ NO English in caption (Thai only)\n\nNow analyze the image and create the content.",
+        "hasOutputParser": true,
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "คุณคือผู้เชี่ยวชาญด้านคอนเทนต์โซเชียลมีเดียภาษาไทย มีความเชี่ยวชาญในการสร้างแคปชั่นและแฮชแท็กที่ดึงดูดความสนใจ โดยเฉพาะเนื้อหาข่าวและประเด็นสังคม\n\nความสามารถพิเศษ:\n- วิเคราะห์บริบทจากรูปภาพและข้อความ\n- สร้างแคปชั่นที่กระชับ ชัดเจน และดึงดูดใจ\n- เลือกแฮชแท็กที่เหมาะสมและมีโอกาสไวรัล\n- เข้าใจวัฒนธรรมและเทรนด์โซเชียลมีเดียไทย\n\nหลักการทำงาน:\n1. อ่านและเข้าใจข้อความในภาพ\n2. ระบุประเภทเนื้อหา (ข่าว/สังคม/บันเทิง)\n3. สร้างแคปชั่นที่เหมาะสมกับบริบท\n4. เลือกแฮชแท็กที่เพิ่มการมองเห็น\n\nคุณต้องตอบกลับเป็น JSON เท่านั้น ห้ามอธิบายหรือใส่ข้อความอื่นใด\n\nคุณเป็นผู้ช่วยจัดการเนื้อหาโซเชียลมีเดีย ภารกิจของคุณคือรับและจัดระเบียบข้อมูลการโพสต์วิดีโอในหลายแพลตฟอร์ม (Facebook และ YouTube) รับข้อมูลภาษาไทยสำหรับหัวข้อ คำอธิบาย และแท็ก โดยอนุญาตให้แก้ไขเฉพาะแพลตฟอร์ม ตรวจสอบว่ามีข้อมูลที่จำเป็นครบถ้วน และจัดรูปแบบผลลัพธ์เป็น JSON สำหรับระบบจัดการเนื้อหา"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        144,
+        -160
+      ],
+      "id": "02031f57-a10a-47c1-9a53-564f7e684d51",
+      "name": "Quote Creator1"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"caption\": \"ข้อความคำคมที่เข้ากับรูปภาพ\",\n  \"hashtags\": \"#แท็ก1 #แท็ก2 #แท็ก3\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        368,
+        64
+      ],
+      "id": "21d86bde-a4a9-4f8e-80fa-7f8201605502",
+      "name": "Structured Output Parser5"
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-2.5-flash-lite",
+        "options": {
+          "maxTokens": 500,
+          "temperature": 0.8
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        96,
+        80
+      ],
+      "id": "62297fd7-d908-4b0c-86f6-8ea97c0dd69f",
+      "name": "Gemini",
+      "credentials": {
+        "openRouterApi": {
+          "id": "XNhEypiPAYXlqTAA",
+          "name": "OpenRouter account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpRequestMethod": "POST",
+        "graphApiVersion": "v23.0",
+        "node": "908056595718150",
+        "edge": "videos",
+        "sendBinaryData": true,
+        "binaryPropertyName": "data",
+        "options": {
+          "queryParameters": {
+            "parameter": [
+              {
+                "name": "description",
+                "value": "={{ $json.caption }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.facebookGraphApi",
+      "typeVersion": 1,
+      "position": [
+        544,
+        -352
+      ],
+      "id": "4b9424f1-0dd2-49fb-80d6-32bd29ac5b32",
+      "name": "Facebook Graph API",
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "uVL7wVAhMIlDsKYj",
+          "name": "ข่าวประเด็นร้อน"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -160,
+        -352
+      ],
+      "id": "03eeade6-4332-434d-b801-51bd34276e7b",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "url": "=http://youtube-downloader-api:8000/get-file/{{ $json.filename }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        320,
+        -352
+      ],
+      "id": "e782ac52-c4ef-45d3-89e2-0c255c1eef8a",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "model": "openai/chatgpt-4o-latest",
+        "options": {
+          "maxTokens": 500,
+          "temperature": 0.8
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        208,
+        80
+      ],
+      "id": "598a35a5-75f9-474f-a61e-126e512113d9",
+      "name": "Gemini1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "XNhEypiPAYXlqTAA",
+          "name": "OpenRouter account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every 2 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Get Pending Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Pending Job": {
+      "main": [
+        [
+          {
+            "node": "IF Job Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Job Found": {
+      "main": [
+        [
+          {
+            "node": "Download Video (FastAPI)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch 5 Latest Shorts1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Job (Wait)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Video (FastAPI)": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare FB Post Data": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark as Done": {
+      "main": [
+        [
+          {
+            "node": "Cleanup Video File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch 5 Latest Shorts1": {
+      "main": [
+        [
+          {
+            "node": "Filter New Videos1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter New Videos1": {
+      "main": [
+        [
+          {
+            "node": "Download & Capture1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download & Capture1": {
+      "main": [
+        [
+          {
+            "node": "Parse Result1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Result1": {
+      "main": [
+        [
+          {
+            "node": "Read Screenshot1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Screenshot1": {
+      "main": [
+        [
+          {
+            "node": "Quote Creator1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser5": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Quote Creator1",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Quote Creator1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quote Creator1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Facebook Graph API": {
+      "main": [
+        [
+          {
+            "node": "Mark as Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cleanup Video File": {
+      "main": [
+        []
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Prepare FB Post Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Facebook Graph API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Quote Creator1",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ad9d255b-4537-4e1a-986b-e78c8489f248",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2c5f1022e10b4a1a09196106d3e43b350db47bce030db5d1dfa2c1883385bed9"
+  },
+  "id": "ztXkTtTrWQMnCEk5",
+  "tags": []
+}

@@ -1,0 +1,44 @@
+services:
+  # n8n - Automation Platform
+  - type: web
+    name: n8n-automation
+    env: docker
+    dockerfilePath: ./Dockerfile.n8n
+    envVars:
+      - key: N8N_BASIC_AUTH_ACTIVE
+        value: true
+      - key: N8N_BASIC_AUTH_USER
+        value: admin
+      - key: N8N_BASIC_AUTH_PASSWORD
+        generateValue: true
+      - key: N8N_HOST
+        value: 0.0.0.0
+      - key: N8N_PORT
+        value: 5678
+      - key: N8N_PROTOCOL
+        value: https
+      - key: WEBHOOK_URL
+        value: https://n8n-automation.onrender.com
+      - key: NODE_ENV
+        value: production
+      - key: EXECUTIONS_PROCESS
+        value: main
+      - key: GENERIC_TIMEZONE
+        value: Asia/Bangkok
+      - key: TZ
+        value: Asia/Bangkok
+    disk:
+      name: n8n-data
+      mountPath: /home/node/.n8n
+      sizeGB: 1
+
+  # YouTube Downloader API
+  - type: web
+    name: youtube-downloader-api
+    env: docker
+    dockerfilePath: ./youtube-downloader-api/Dockerfile
+    envVars:
+      - key: DOWNLOAD_DIR
+        value: /downloads
+      - key: TZ
+        value: Asia/Bangkok
