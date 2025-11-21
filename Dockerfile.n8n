@@ -9,5 +9,4 @@ COPY scripts /scripts
 # Expose port
 EXPOSE 5678
 
-# Start n8n
-CMD ["n8n", "start"]
+# Use default n8n startup (no CMD override needed)
