@@ -73,7 +73,7 @@ async def download_video(request: DownloadRequest):
         # Output template
         output_template = os.path.join(DOWNLOAD_DIR, f"{video_id}.%(ext)s")
         
-        # yt-dlp options
+        # yt-dlp options with anti-bot measures
         ydl_opts = {
             'format': 'best[ext=mp4]/best',
             'outtmpl': output_template,
@@ -81,6 +81,18 @@ async def download_video(request: DownloadRequest):
             'no_warnings': False,
             'extract_flat': False,
             'merge_output_format': 'mp4',
+            # Anti-bot detection options
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'referer': 'https://www.youtube.com/',
+            'nocheckcertificate': True,
+            'extractor_retries': 3,
+            'fragment_retries': 10,
+            'skip_unavailable_fragments': True,
+            'http_headers': {
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-us,en;q=0.5',
+                'Sec-Fetch-Mode': 'navigate',
+            },
             'postprocessors': [{
                 'key': 'FFmpegVideoConvertor',
                 'preferedformat': 'mp4',
