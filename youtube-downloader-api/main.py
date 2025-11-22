@@ -7,6 +7,8 @@ import logging
 from pathlib import Path
 from typing import Optional
 import re
+import base64
+import tempfile
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -17,6 +19,25 @@ app = FastAPI(title="YouTube Downloader API")
 # Download directory
 DOWNLOAD_DIR = os.getenv("DOWNLOAD_DIR", "/downloads")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+
+# Setup cookies file from environment variable
+COOKIES_FILE = None
+cookies_base64 = os.getenv("YOUTUBE_COOKIES_BASE64")
+if cookies_base64:
+    try:
+        # Decode base64 cookies
+        cookies_content = base64.b64decode(cookies_base64).decode('utf-8')
+        # Create temporary file for cookies
+        cookies_fd, COOKIES_FILE = tempfile.mkstemp(suffix='.txt', text=True)
+        with os.fdopen(cookies_fd, 'w') as f:
+            f.write(cookies_content)
+        logger.info(f"Cookies file created: {COOKIES_FILE}")
+    except Exception as e:
+        logger.error(f"Failed to setup cookies: {e}")
+        COOKIES_FILE = None
+else:
+    logger.warning("No YOUTUBE_COOKIES_BASE64 environment variable found")
+
 
 
 class DownloadRequest(BaseModel):
@@ -98,6 +119,11 @@ async def download_video(request: DownloadRequest):
                 'preferedformat': 'mp4',
             }],
         }
+        
+        # Add cookies file if available
+        if COOKIES_FILE:
+            ydl_opts['cookiefile'] = COOKIES_FILE
+            logger.info(f"Using cookies file: {COOKIES_FILE}")
         
         # Download video
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
